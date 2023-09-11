@@ -43,7 +43,7 @@ const checkTempBookedSeat = async (req, res) => {
                 const bookingTime = checkStatus[i].booking_time;
                 if (currentTime - bookingTime >= fifteenMinutes) {
                     expiredSeatId.push(checkStatus[i].bus_schedule_seat_id);
-                    expiredBusSeatId.push(checkStatus[i].bus_seat_id);
+                    expiredBusSeatId.push(parseInt(checkStatus[i].bus_seat_id));
                 }
             }
             console.log('expiredSeatId: ', expiredSeatId);
