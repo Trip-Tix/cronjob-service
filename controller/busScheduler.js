@@ -2,6 +2,7 @@ const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const busPool = require('../config/busDB.js');
 const nodemailer = require('nodemailer');
+const accountPool = require('../config/accountDB');
 
 dotenv.config();
 
@@ -107,7 +108,7 @@ const checkTempBookedSeat = async (req, res) => {
                         WHERE user_id = $1`,
                     values: [userid]
                 }
-                const getUserEmailResult = await busPool.query(getUserEmailQuery);
+                const getUserEmailResult = await accountPool.query(getUserEmailQuery);
                 const userEmail = getUserEmailResult.rows[0].email;
 
                 // Send ticket to user email
