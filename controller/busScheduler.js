@@ -53,11 +53,23 @@ const checkTempBookedSeat = async (req, res) => {
                 const updateStatusQuery = {
                     text: `UPDATE bus_schedule_seat_info
                         SET booked_status = 0 
-                        WHERE bus_schedule_seat_id = ANY($1::bigint[])`,
+                        WHERE bus_schedule_seat_id = ANY($1::bigint[]) RETURNING *`,
                     values: [expiredSeatId]
                 }
-                await busPool.query(updateStatusQuery);
+                const result = await busPool.query(updateStatusQuery);
+                console.log(result.rows);
+                const ticketIds = result.rows.map((item) => item.ticket_id);
+
                 console.log(` ${expiredSeatId.length} seats Status updated to 0`);
+
+                // remove all ticket id from ticket_info
+                const removeTicketInfoQuery = {
+                    text: `DELETE FROM ticket_info
+                        WHERE ticket_id = ANY($1::bigint[])`,
+                    values: [ticketIds]
+                }
+                await busPool.query(removeTicketInfoQuery);
+                console.log(` ${ticketIds.length} ticket info removed`);
 
                 console.log(expiredBusSeatId);
                 // Get the first user in queue
