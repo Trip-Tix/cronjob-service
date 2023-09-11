@@ -89,6 +89,18 @@ const checkTempBookedSeat = async (req, res) => {
                     const f = getFirstUserResult.rows[0];
                     if (f.length !== 0) {
                         firstUser = f;
+
+                        // Update bus schedule info to set booked status to 1
+                        const updateBusScheduleInfoQuery = {
+                            text: `UPDATE bus_schedule_info
+                                SET booked_status = 1, user_id = $1, ticket_id = $2
+                                WHERE bus_schedule_id = $3 
+                                AND bus_seat_id = $4`,
+                            values: [firstUser.user_id, firstUser.queue_ticket_id, firstUser.bus_schedule_id, a]
+
+                        }
+                        await busPool.query(updateBusScheduleInfoQuery);
+                        console.log(`Bus schedule info updated`);
                         break;
                     }
                 }
