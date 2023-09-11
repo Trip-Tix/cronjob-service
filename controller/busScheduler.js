@@ -27,7 +27,7 @@ const checkTempBookedSeat = async (req, res) => {
         } else {
             // Check if the booking time is more than 15 minutes
             const currentTime = new Date().getTime();
-            const fifteenMinutes = 15 * 60 * 1000;
+            const fifteenMinutes = 3 * 60 * 1000;
             let expiredSeatId = [];
             for (let i = 0; i < checkStatus.length; i++) {
                 const bookingTime = checkStatus[i].booking_time;
