@@ -60,7 +60,7 @@ const checkTempBookedSeat = async (req, res) => {
                 const getFirstUserQuery = {
                     text: `SELECT *
                         FROM ticket_queue 
-                        WHERE bus_schedule_seat_id = ANY($1) 
+                        WHERE bus_seat_id = ANY($1) 
                         ORDER BY date ASC`,
                     values: [expiredSeatId]
                 }
