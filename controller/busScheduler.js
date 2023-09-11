@@ -65,7 +65,7 @@ const checkTempBookedSeat = async (req, res) => {
                 // remove all ticket id from ticket_info
                 const removeTicketInfoQuery = {
                     text: `DELETE FROM ticket_info
-                        WHERE ticket_id = ANY($1::bigint[])`,
+                        WHERE ticket_id = ANY($1)`,
                     values: [ticketIds]
                 }
                 await busPool.query(removeTicketInfoQuery);
