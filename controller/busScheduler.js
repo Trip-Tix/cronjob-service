@@ -23,7 +23,7 @@ const checkTempBookedSeat = async (req, res) => {
 
     try {
         const checkStatusQuery = {
-            text: `SELECT booked_status, bus_schedule_seat_id, booking_time 
+            text: `SELECT booked_status, bus_schedule_seat_id, booking_time, bus_seat_id  
                 FROM bus_schedule_seat_info 
                 WHERE booked_status = 1 `,
             values: []
@@ -52,26 +52,39 @@ const checkTempBookedSeat = async (req, res) => {
                 const updateStatusQuery = {
                     text: `UPDATE bus_schedule_seat_info
                         SET booked_status = 0 
-                        WHERE bus_schedule_seat_id = ANY($1)`,
+                        WHERE bus_schedule_seat_id = ANY($1::bigint[])`,
                     values: [expiredSeatId]
                 }
                 await busPool.query(updateStatusQuery);
                 console.log(` ${expiredSeatId.length} seats Status updated to 0`);
 
+                console.log(expiredBusSeatId);
                 // Get the first user in queue
-                const getFirstUserQuery = {
-                    text: `SELECT *
-                        FROM ticket_queue 
-                        WHERE bus_seat_id = ANY($1) 
-                        ORDER BY date ASC`,
-                    values: [expiredBusSeatId]
+
+                let firstUser = {};
+
+                for (let i = 0; i < expiredBusSeatId.length; i++) {
+                    a = expiredBusSeatId[i];
+                    const getFirstUserQuery = {
+                        text: `SELECT *
+                            FROM ticket_queue
+                            WHERE $1 = ANY(bus_seat_id)
+                            ORDER BY date ASC`,
+                        values: [a]
+                    }
+                    const getFirstUserResult = await busPool.query(getFirstUserQuery);
+                    const f = getFirstUserResult.rows[0];
+                    if (f.length !== 0) {
+                        firstUser = f;
+                        break;
+                    }
                 }
-                const getFirstUserResult = await busPool.query(getFirstUserQuery);
-                const firstUser = getFirstUserResult.rows[0];
+                
+                console.log('firstUser: ', firstUser);
                 // Insert into ticket_info
                 const insertTicketInfoQuery = {
                     text: `INSERT INTO ticket_info (ticket_id, user_id, total_fare, bus_schedule_id, number_of_tickets, passenger_info, date, source, destination)
-                        VALUES ($1, $2, $3, $4, $5, $6) RETURNING ticket_id`,
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING ticket_id`,
                     values: [firstUser.queue_ticket_id, firstUser.user_id, firstUser.total_fare, firstUser.bus_schedule_id, firstUser.number_of_tickets, firstUser.passenger_info, firstUser.date, firstUser.source, firstUser.destination]
                 }
                 const insertTicketInfoResult = await busPool.query(insertTicketInfoQuery);
@@ -85,10 +98,22 @@ const checkTempBookedSeat = async (req, res) => {
                 }
                 await busPool.query(removeFromTicketQueueQuery);
 
+                const userid = firstUser.user_id;
+
+                // Get user email
+                const getUserEmailQuery = {
+                    text: `SELECT email
+                        FROM user_info
+                        WHERE user_id = $1`,
+                    values: [userid]
+                }
+                const getUserEmailResult = await busPool.query(getUserEmailQuery);
+                const userEmail = getUserEmailResult.rows[0].email;
+
                 // Send ticket to user email
                 const mailOptions = {
                     from: 'triptix.sfz@gmail.com',
-                    to: firstUser.email,
+                    to: userEmail,
                     subject: `${ticketId} Ticket`,
                     text: 'Your ticket is free! Go to dashboard to proceed to payment',
                 };
