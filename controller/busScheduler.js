@@ -1,10 +1,19 @@
 const dotenv = require('dotenv');
 const jwt = require('jsonwebtoken');
 const busPool = require('../config/busDB.js');
+const nodemailer = require('nodemailer');
 
 dotenv.config();
 
 const secretKey = process.env.SECRETKEY;
+
+const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+        user: 'triptix.sfz@gmail.com',
+        pass: 'geviigtztnzsfnbm', // Use an "App Password" if you have 2-Step Verification enabled
+    },
+});
 
 
 // Check temporary booked seat
@@ -46,7 +55,46 @@ const checkTempBookedSeat = async (req, res) => {
                 }
                 await busPool.query(updateStatusQuery);
                 console.log(` ${expiredSeatId.length} seats Status updated to 0`);
-            } 
+
+                // Get the first user in queue
+                const getFirstUserQuery = {
+                    text: `SELECT *
+                        FROM ticket_queue 
+                        WHERE bus_schedule_seat_id = ANY($1) 
+                        ORDER BY date ASC`,
+                    values: [expiredSeatId]
+                }
+                const getFirstUserResult = await busPool.query(getFirstUserQuery);
+                const firstUser = getFirstUserResult.rows[0];
+                // Insert into ticket_info
+                const insertTicketInfoQuery = {
+                    text: `INSERT INTO ticket_info (ticket_id, user_id, total_fare, bus_schedule_id, number_of_tickets, passenger_info, date, source, destination)
+                        VALUES ($1, $2, $3, $4, $5, $6) RETURNING ticket_id`,
+                    values: [firstUser.queue_ticket_id, firstUser.user_id, firstUser.total_fare, firstUser.bus_schedule_id, firstUser.number_of_tickets, firstUser.passenger_info, firstUser.date, firstUser.source, firstUser.destination]
+                }
+                const insertTicketInfoResult = await busPool.query(insertTicketInfoQuery);
+                const ticketId = insertTicketInfoResult.rows[0].ticket_id;
+
+                // Remove from ticket_queue
+                const removeFromTicketQueueQuery = {
+                    text: `DELETE FROM ticket_queue
+                        WHERE queue_ticket_id = $1`,
+                    values: [firstUser.queue_ticket_id]
+                }
+                await busPool.query(removeFromTicketQueueQuery);
+
+                // Send ticket to user email
+                const mailOptions = {
+                    from: 'triptix.sfz@gmail.com',
+                    to: firstUser.email,
+                    subject: `${ticketId} Ticket`,
+                    text: 'Your ticket is free! Go to dashboard to proceed to payment',
+                };
+                await transporter.sendMail(mailOptions);
+                console.log('Ticket sent to user email');
+
+
+            }
             return res.status(200).json(checkStatus);
         }
     } catch (error) {
