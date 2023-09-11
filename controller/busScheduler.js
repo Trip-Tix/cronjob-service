@@ -38,10 +38,12 @@ const checkTempBookedSeat = async (req, res) => {
             const currentTime = new Date().getTime();
             const fifteenMinutes = 3 * 60 * 1000;
             let expiredSeatId = [];
+            let expiredBusSeatId = [];
             for (let i = 0; i < checkStatus.length; i++) {
                 const bookingTime = checkStatus[i].booking_time;
                 if (currentTime - bookingTime >= fifteenMinutes) {
                     expiredSeatId.push(checkStatus[i].bus_schedule_seat_id);
+                    expiredBusSeatId.push(checkStatus[i].bus_seat_id);
                 }
             }
             console.log('expiredSeatId: ', expiredSeatId);
@@ -62,7 +64,7 @@ const checkTempBookedSeat = async (req, res) => {
                         FROM ticket_queue 
                         WHERE bus_seat_id = ANY($1) 
                         ORDER BY date ASC`,
-                    values: [expiredSeatId]
+                    values: [expiredBusSeatId]
                 }
                 const getFirstUserResult = await busPool.query(getFirstUserQuery);
                 const firstUser = getFirstUserResult.rows[0];
